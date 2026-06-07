@@ -1089,8 +1089,8 @@ td{
       <button type="submit" class="btn btn-primary" style="margin-top: 10px;">Sign In</button>
     </form>
     <div class="login-help-text">
-      Default Credentials:<br>
-      <strong>Username:</strong> admin &nbsp;|&nbsp; <strong>Password:</strong> password123
+     Credentials Required :<br>
+      <strong>Username:</strong>  &nbsp;|&nbsp; <strong>Password:</strong> 
     </div>
   </div>
 </div>
@@ -1351,7 +1351,7 @@ function handleLogin(event) {
   const user = document.getElementById('login-username').value.trim();
   const pass = document.getElementById('login-password').value;
 
-  if (user === 'admin' && pass === 'password123') {
+  if (user === '0123456789' && pass === '0123456789') {
     sessionStorage.setItem('mi-auth', 'true');
     document.getElementById('loader').classList.remove('hidden');
     setTimeout(() => {

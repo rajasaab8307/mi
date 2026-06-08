@@ -4,7 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Mann Industries — Application Portal</title>
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;700;800&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght=500;700;800&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600&display=swap" rel="stylesheet"/>
 
 <!-- CDN Libraries for clean client-side image and PDF exports -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -175,6 +175,12 @@ header{
   content:'';position:absolute;inset:0;
   background:linear-gradient(135deg,transparent 40%,rgba(255,255,255,0.12));
 }
+.brand-name{
+  font-family:'Plus Jakarta Sans',sans-serif;
+  font-size:16px;font-weight:700;
+  color:var(--text);letter-spacing:-0.01em;
+}
+.brand-name em{color:var(--blue);font-style:normal}
 .brand-name{
   font-family:'Plus Jakarta Sans',sans-serif;
   font-size:16px;font-weight:700;
@@ -1089,7 +1095,7 @@ td{
       <button type="submit" class="btn btn-primary" style="margin-top: 10px;">Sign In</button>
     </form>
     <div class="login-help-text">
-     Credentials Required :<br>
+      Default Credentials:<br>
       <strong>Username:</strong>  &nbsp;|&nbsp; <strong>Password:</strong> 
     </div>
   </div>
@@ -1167,11 +1173,11 @@ td{
         </div>
         <div class="field">
           <label>Date of Birth *</label>
-          <input type="text" id="f-dob" placeholder="DD-MM-YYYY" maxlength="10" oninput="fmtDate(this)"/>
+          <input type="text" id="f-dob" placeholder="DD/MM/YYYY" maxlength="10" oninput="fmtDate(this)"/>
         </div>
         <div class="field">
           <label>Date of Application</label>
-          <input type="text" id="f-appdate" placeholder="DD-MM-YYYY" maxlength="10" oninput="fmtDate(this)"/>
+          <input type="text" id="f-appdate" placeholder="DD/MM/YYYY" maxlength="10" oninput="fmtDate(this)"/>
         </div>
         <div class="field">
           <label>Application Type *</label>
@@ -1311,7 +1317,7 @@ td{
 <div class="toast" id="toast"></div>
 
 <script>
-const SCRIPT_URL='https://script.google.com/macros/s/AKfycbyaUu9xEi0D5hO6SgLSESXMTZkJLEsoU4s82_E1z7YnLwIKpJCFFtrWwrj214QStLD85Q/exec';
+const SCRIPT_URL='https://script.google.com/macros/s/AKfycbyXtQJB7s0-foHrNZnARiBaJCw59_de62GNNIfkUpKCfhE4dSeUdE4Bj2PUSMKujINv/exec';
 let records=[];
 let selType='';
 let currentCardId='';
@@ -1319,7 +1325,8 @@ let currentCardId='';
 function init(){
   const n=new Date();
   const d=n=>String(n).padStart(2,'0');
-  document.getElementById('f-appdate').value=d(n.getDate())+'-'+d(n.getMonth()+1)+'-'+n.getFullYear();
+  // Set default format to forward slashes DD/MM/YYYY
+  document.getElementById('f-appdate').value=d(n.getDate())+'/'+d(n.getMonth()+1)+'/'+n.getFullYear();
   
   // Set real-time dynamic printed timestamp configuration
   window.onbeforeprint = () => {
@@ -1369,11 +1376,44 @@ function logout() {
   showLogin();
 }
 
+// Formats user-typed numeric input with forward slashes instead of hyphens
 function fmtDate(el){
   let v=el.value.replace(/\D/g,'');
-  if(v.length>=5)v=v.slice(0,2)+'-'+v.slice(2,4)+'-'+v.slice(4,8);
-  else if(v.length>=3)v=v.slice(0,2)+'-'+v.slice(2);
+  if(v.length>=5)v=v.slice(0,2)+'/'+v.slice(2,4)+'/'+v.slice(4,8);
+  else if(v.length>=3)v=v.slice(0,2)+'/'+v.slice(2);
   el.value=v;
+}
+
+// Safely converts date formats and Google Sheets timestamp offsets into DD/MM/YYYY format
+function parseAndFormatDate(dateVal) {
+  if (!dateVal) return '—';
+  let d = null;
+  if (dateVal instanceof Date) {
+    d = dateVal;
+  } else if (typeof dateVal === 'string') {
+    const str = dateVal.trim();
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(str)) {
+      return str;
+    }
+    if (/^\d{2}-\d{2}-\d{4}$/.test(str)) {
+      return str.replace(/-/g, '/');
+    }
+    if (str.includes('T') || /^\d{4}-\d{2}-\d{2}/.test(str)) {
+      d = new Date(str);
+    } else {
+      d = new Date(str);
+    }
+  } else {
+    d = new Date(dateVal);
+  }
+
+  if (d && !isNaN(d.getTime())) {
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    return `${day}/${month}/${year}`;
+  }
+  return String(dateVal);
 }
 
 async function loadSheet(){
@@ -1427,6 +1467,16 @@ async function addEntry(){
   if(!selType)return toast('⚠ Please select Application Type','warn');
   if(!appnum)return toast('⚠ Please enter '+selType+' Number','warn');
 
+  // Prevent direct saving as 'Done' unless PIN is provided
+  if(status==='Done'){
+    const pin = prompt('Enter 4-digit PIN to save directly as Done:');
+    if (pin === null) return;
+    if (pin !== '8307') {
+      toast('⚠ Incorrect PIN. Entry aborted.', 'warn');
+      return;
+    }
+  }
+
   const btn=document.getElementById('add-btn');
   btn.disabled=true;btn.textContent='Saving…';
 
@@ -1442,6 +1492,15 @@ async function toggleStatus(id){
   const r=records.find(x=>x.id===id);
   if(!r)return;
   if(r.status==='Done'){toast('⚠ Done cannot revert to Pending','warn');return;}
+  
+  // Require 4-digit PIN to toggle status from Pending to Done
+  const pin = prompt('Enter 4-digit PIN to mark this application as Done:');
+  if (pin === null) return; // Action cancelled
+  if (pin !== '8307') {
+    toast('⚠ Incorrect PIN. Access denied.', 'warn');
+    return;
+  }
+
   const el=document.querySelector('[data-tid="'+id+'"]');
   if(el)el.style.pointerEvents='none';
   r.status='Done';renderTable();
@@ -1450,7 +1509,14 @@ async function toggleStatus(id){
 }
 
 async function deleteEntry(id){
-  if(!confirm('Delete this record?'))return;
+  // Require 4-digit PIN to delete record
+  const pin = prompt('Enter 4-digit PIN to delete this record:');
+  if (pin === null) return; // Action cancelled
+  if (pin !== '7038') {
+    toast('⚠ Incorrect PIN. Record not deleted.', 'warn');
+    return;
+  }
+
   records=records.filter(x=>x.id!==id);
   renderTable();
   await push({action:'delete',id});
@@ -1464,8 +1530,8 @@ function openCard(id) {
   currentCardId = id;
   
   document.getElementById('card-name').textContent = r.name;
-  document.getElementById('card-dob').textContent = r.dob || '—';
-  document.getElementById('card-appdate').textContent = r.appdate || '—';
+  document.getElementById('card-dob').textContent = parseAndFormatDate(r.dob);
+  document.getElementById('card-appdate').textContent = parseAndFormatDate(r.appdate);
   
   const statusPill = document.getElementById('card-status');
   statusPill.textContent = r.status.toUpperCase();
@@ -1541,8 +1607,8 @@ function renderTable(){
       <tr style="animation-delay:${i*0.04}s">
         <td class="td-num">${filtered.length-i}</td>
         <td class="td-name">${esc(r.name)}</td>
-        <td class="td-date">${r.dob||'—'}</td>
-        <td class="td-date">${r.appdate||'—'}</td>
+        <td class="td-date">${parseAndFormatDate(r.dob)}</td>
+        <td class="td-date">${parseAndFormatDate(r.appdate)}</td>
         <td><span class="type-pill">${r.type}</span></td>
         <td class="app-num">${esc(r.appnum||'—')}</td>
         <td>
